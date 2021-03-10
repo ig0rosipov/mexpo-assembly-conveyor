@@ -1,16 +1,14 @@
-/*
- * Руи Сантос (Rui Santos)
- * Более подробно о проекте здесь:
- * http://randomnerdtutorials.com
-*/
 #include <ArduinoJson.h>
 #include <SPI.h>
 #include <Ethernet.h>
 
+#define CONVEYOR_PIN 7
+#define SENSOR_PIN 6
+
 // введите ниже MAC-адрес и IP-адрес вашего контроллера;
 // IP-адрес будет зависеть от вашей локальной сети:
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
-byte ip[] = {192, 168, 25, 45};
+// byte ip[] = {192, 168, 25, 45};
 EthernetServer server(80);
 
 // задаем переменные для клиента:
@@ -19,13 +17,17 @@ int charcount = 0;
 
 void setup()
 {
+
+  pinMode(CONVEYOR_PIN, OUTPUT);
+  digitalWrite(CONVEYOR_PIN, LOW);
+
   // Initialize serial port
   Serial.begin(9600);
   while (!Serial)
     continue;
 
   // Initialize Ethernet libary
-  Ethernet.begin(mac, ip);
+  Ethernet.begin(mac);
 
   // Start to listen
   server.begin();
@@ -67,13 +69,27 @@ void loop()
         }
         if (c == '\n')
         {
-          if (strstr(linebuf, "GET /time") > 0)
+
+          if (strstr(linebuf, "GET /run") > 0)
           {
-            doc["time"] = 1;
+            digitalWrite(CONVEYOR_PIN, HIGH);
+            doc["status"] = "running";
           }
-          else if (strstr(linebuf, "GET /button") > 0)
+          else if (strstr(linebuf, "GET /stop") > 0)
           {
-            doc["button"] = 2;
+            digitalWrite(CONVEYOR_PIN, LOW);
+            doc["status"] = "production";
+          }
+          else if (strstr(linebuf, "GET /check") > 0)
+          {
+            if (digitalRead(CONVEYOR_PIN) == HIGH)
+            {
+              doc["status"] = "running";
+            }
+            else
+            {
+              doc["status"] = "production";
+            }
           }
           // если получили символ новой строки...
           currentLineIsBlank = true;
@@ -97,6 +113,8 @@ void loop()
     // Write response headers
     client.println(F("HTTP/1.0 200 OK"));
     client.println(F("Content-Type: application/json"));
+    client.println(F("Access-Control-Allow-Origin: *"));
+    client.println(F("Access-Control-Allow-Headers: X-Requested-With, content-type, access-control-allow-origin, access-control-allow-methods, access-control-allow-headers"));
     client.println(F("Connection: close"));
     client.print(F("Content-Length: "));
     client.println(measureJsonPretty(doc));
