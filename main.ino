@@ -3,7 +3,8 @@
 #include <Ethernet.h>
 
 #define CONVEYOR_PIN 7
-#define SENSOR_PIN 6
+#define INDICATOR_PIN 6
+#define EMERGENCY_PIN 5
 
 // введите ниже MAC-адрес и IP-адрес вашего контроллера;
 // IP-адрес будет зависеть от вашей локальной сети:
@@ -17,7 +18,9 @@ int charcount = 0;
 
 void setup()
 {
-
+  pinMode(EMERGENCY_PIN, INPUT);
+  pinMode(INDICATOR_PIN, OUTPUT);
+  digitalWrite(INDICATOR_PIN, LOW);
   pinMode(CONVEYOR_PIN, OUTPUT);
   digitalWrite(CONVEYOR_PIN, LOW);
 
@@ -37,7 +40,21 @@ void setup()
   Serial.println(Ethernet.localIP());
 }
 
-// Показываем веб-страницу с кнопкой «вкл/выкл» для реле:
+void handleEmergencyButton()
+{
+  digitalWrite(CONVEYOR_PIN, LOW);
+  while (digitalRead(EMERGENCY_PIN) == LOW)
+  {
+    digitalWrite(INDICATOR_PIN, HIGH);
+    delay(250);
+    digitalWrite(INDICATOR_PIN, LOW);
+    delay(250);
+    if (digitalRead(EMERGENCY_PIN) == HIGH)
+    {
+      break;
+    }
+  }
+}
 
 void loop()
 {
@@ -46,63 +63,82 @@ void loop()
   EthernetClient client = server.available();
   if (client)
   {
-    Serial.println("new client"); //  "новый клиент"
-    memset(linebuf, 0, sizeof(linebuf));
-    charcount = 0;
-    // HTTP-запрос заканчивается пустой строкой:
-    boolean currentLineIsBlank = true;
-    while (client.connected())
-    {
-      if (client.available())
-      {
-        char c = client.read();
-        // считываем HTTP-запрос, символ за символом:
-        linebuf[charcount] = c;
-        if (charcount < sizeof(linebuf) - 1)
-          charcount++;
-        // если вы дошли до конца строки (т.е. если получили
-        // символ новой строки), это значит,
-        // что HTTP-запрос завершен, и вы можете отправить ответ:
-        if (c == '\n' && currentLineIsBlank)
-        {
-          break;
-        }
-        if (c == '\n')
-        {
 
-          if (strstr(linebuf, "GET /run") > 0)
-          {
-            digitalWrite(CONVEYOR_PIN, HIGH);
-            doc["status"] = "running";
-          }
-          else if (strstr(linebuf, "GET /stop") > 0)
-          {
-            digitalWrite(CONVEYOR_PIN, LOW);
-            doc["status"] = "production";
-          }
-          else if (strstr(linebuf, "GET /check") > 0)
-          {
-            if (digitalRead(CONVEYOR_PIN) == HIGH)
-            {
-              doc["status"] = "running";
-            }
-            else
-            {
-              doc["status"] = "production";
-            }
-          }
-          // если получили символ новой строки...
-          currentLineIsBlank = true;
-          memset(linebuf, 0, sizeof(linebuf));
-          charcount = 0;
-        }
-        else if (c != '\r')
+    if (digitalRead(EMERGENCY_PIN) == LOW)
+    {
+      handleEmergencyButton();
+    }
+    else
+    {
+      Serial.println("new client"); //  "новый клиент"
+      memset(linebuf, 0, sizeof(linebuf));
+      charcount = 0;
+      // HTTP-запрос заканчивается пустой строкой:
+      boolean currentLineIsBlank = true;
+      while (client.connected())
+      {
+        if (client.available())
         {
-          // если получили какой-то другой символ...
-          currentLineIsBlank = false;
+          char c = client.read();
+          // считываем HTTP-запрос, символ за символом:
+          linebuf[charcount] = c;
+          if (charcount < sizeof(linebuf) - 1)
+            charcount++;
+          // если вы дошли до конца строки (т.е. если получили
+          // символ новой строки), это значит,
+          // что HTTP-запрос завершен, и вы можете отправить ответ:
+          if (c == '\n' && currentLineIsBlank)
+          {
+            break;
+          }
+          if (c == '\n')
+          {
+            if (strstr(linebuf, "GET /") > 0)
+            {
+              if (digitalRead(EMERGENCY_PIN) == LOW)
+              {
+                handleEmergencyButton();
+              }
+              else
+              {
+                if (strstr(linebuf, "GET /run") > 0)
+                {
+                  digitalWrite(CONVEYOR_PIN, HIGH);
+                  doc["status"] = "running";
+                }
+                else if (strstr(linebuf, "GET /stop") > 0)
+                {
+                  digitalWrite(CONVEYOR_PIN, LOW);
+                  doc["status"] = "production";
+                }
+                else if (strstr(linebuf, "GET /check") > 0)
+                {
+                  if (digitalRead(CONVEYOR_PIN) == HIGH)
+                  {
+                    doc["status"] = "running";
+                  }
+                  else
+                  {
+                    doc["status"] = "production";
+                  }
+                }
+              }
+            }
+
+            // если получили символ новой строки...
+            currentLineIsBlank = true;
+            memset(linebuf, 0, sizeof(linebuf));
+            charcount = 0;
+          }
+          else if (c != '\r')
+          {
+            // если получили какой-то другой символ...
+            currentLineIsBlank = false;
+          }
         }
       }
     }
+
     // даем веб-браузеру время на получение данных:
     delay(1);
     // закрываем соединение:
