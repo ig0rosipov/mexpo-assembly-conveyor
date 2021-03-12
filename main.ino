@@ -157,7 +157,6 @@ void loop()
     client.println();
     // Write JSON document
     serializeJsonPretty(doc, client);
-
     client.stop();
     Serial.println("client disonnected"); //  "Клиент отключен"
   }
