@@ -16,12 +16,12 @@ GButton sensor(SENSOR_PIN);
 // введите ниже MAC - адрес и IP - адрес вашего контроллера;
 // IP-адрес будет зависеть от вашей локальной сети:
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
-byte ip[] = {192, 168, 25, 143};
+byte ip[] = {192, 168, 13, 116};
 EthernetServer server(80);
 // задаем переменные для клиента:
 char linebuf[80];
 int charcount = 0;
-char domain[] = "192.168.25.93";
+char domain[] = "192.168.25.169";
 boolean isStopped;
 
 void setup()
@@ -157,7 +157,7 @@ void loop()
   delay(2000);
   EthernetClient client;
   client.setTimeout(10000);
-  if (!client.connect(domain, 5000))
+  if (!client.connect(domain, 7000))
   {
     Serial.println(F("Connection failed"));
     return;
