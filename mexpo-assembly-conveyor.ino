@@ -16,13 +16,12 @@ GButton sensor(SENSOR_PIN);
 // введите ниже MAC - адрес и IP - адрес вашего контроллера;
 // IP-адрес будет зависеть от вашей локальной сети:
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
-byte ip[] = {192, 168, 13, 116};
+byte ip[] = {192, 168, 24, 186};
 EthernetServer server(80);
 // задаем переменные для клиента:
 char linebuf[80];
 int charcount = 0;
-char domain[] = "192.168.25.169";
-boolean isStopped;
+byte domain[] = {192, 168, 25, 111};
 
 void setup()
 {
@@ -54,9 +53,10 @@ void setup()
 
 void loop()
 {
+  boolean isStopped = false;
   StaticJsonDocument<500> doc;
 
-  while (readPin(EMERGENCY_PIN) == HIGH && readPin(SENSOR_PIN) == HIGH)
+  if (readPin(EMERGENCY_PIN) == HIGH && readPin(SENSOR_PIN) == HIGH)
   {
     isStopped = false;
     EthernetClient client = server.available();
@@ -89,17 +89,17 @@ void loop()
             {
               if (strstr(linebuf, "GET /run") > 0)
               {
-                setPin(CONVEYOR_PIN, HIGH);
+                setPin(CONVEYOR_PIN, LOW);
                 doc["status"] = "running";
               }
               else if (strstr(linebuf, "GET /stop") > 0)
               {
-                setPin(CONVEYOR_PIN, LOW);
+                setPin(CONVEYOR_PIN, HIGH);
                 doc["status"] = "production";
               }
               else if (strstr(linebuf, "GET /check") > 0)
               {
-                if (readPin(CONVEYOR_PIN) == HIGH)
+                if (readPin(CONVEYOR_PIN) == LOW)
                 {
                   doc["status"] = "running";
                 }
@@ -140,70 +140,80 @@ void loop()
       // Write JSON document
       serializeJsonPretty(doc, client);
       client.stop();
-      Serial.println("client disonnected"); //  "Клиент отключен"
     }
   }
-  Serial.println("Emergency!");
-  setPin(CONVEYOR_PIN, LOW);
-  Serial.print("isStopped: ");
-  Serial.println(isStopped);
+  else
+  {
+    setPin(CONVEYOR_PIN, HIGH);
+    // Serial.println("Emergency!");
+    // Serial.print("isStopped: ");
+    // Serial.println(isStopped);
 
-  if (isStopped)
-  {
-    return;
-  }
+    if (isStopped == true)
+    {
+      if (readPin(EMERGENCY_PIN) == HIGH && readPin(SENSOR_PIN) == HIGH)
+      {
+        isStopped = false;
+        return;
+      }
+      return;
+    }
+    Serial.println(F("Connecting..."));
+    delay(10);
+    EthernetClient client;
+    // client.setTimeout(10000);
+    if (!client.connect(domain, 80))
+    {
+      Serial.println(F("Connection failed"));
+      client.stop();
+      return;
+    }
+    // Serial.println(F("Connected!"));
+    // Serial.print("Sensor Pin: ");
+    // Serial.println(readPin(SENSOR_PIN));
+    // Serial.print("Emegrency Pin: ");
+    // Serial.println(readPin(EMERGENCY_PIN));
+    if (readPin(SENSOR_PIN) == LOW)
+    {
+      client.println(F("GET /api/sensor HTTP/1.0"));
+      client.println(F("Host: 192.168.24.83"));
+      client.println(F("Connection: close"));
+    }
+    if (readPin(EMERGENCY_PIN) == LOW)
+    {
+      client.println(F("GET /api/emergency HTTP/1.0"));
+      client.println(F("Host: 192.168.24.83"));
+      client.println(F("Connection: close"));
+    }
 
-  Serial.println(F("Connecting..."));
-  delay(2000);
-  EthernetClient client;
-  client.setTimeout(10000);
-  if (!client.connect(domain, 7000))
-  {
-    Serial.println(F("Connection failed"));
-    return;
-  }
-  Serial.println(F("Connected!"));
-  Serial.print("Sensor Pin: ");
-  Serial.println(readPin(SENSOR_PIN));
-  Serial.print("Emegrency Pin: ");
-  Serial.println(readPin(EMERGENCY_PIN));
-  if (readPin(SENSOR_PIN) == LOW)
-  {
-    client.println(F("GET /sensor HTTP/1.0"));
-    client.println(F("Host: bel11.modern.org"));
-    client.println(F("Connection: close"));
-  }
-  if (readPin(EMERGENCY_PIN) == LOW)
-  {
-    client.println(F("GET /emergency HTTP/1.0"));
-    client.println(F("Host: bel11.modern.org"));
-    client.println(F("Connection: close"));
-  }
+    if (client.println() == 0)
+    {
+      Serial.println(F("Failed to send request"));
+      client.stop();
+      return;
+    }
 
-  if (client.println() == 0)
-  {
-    Serial.println(F("Failed to send request"));
+    // char status[32] = {0};
+    // client.readBytesUntil('\r', status, sizeof(status));
+    // Serial.println(status);
+    // if (strcmp(status, "HTTP/1.1 200 OK") != 0)
+    // {
+    //   Serial.print(F("Unexpected response: "));
+    //   Serial.println(status);
+    //   client.stop();
+    //   delay(1000);
+    //   return;
+    // }
+
+    // char endOfHeaders[] = "\r\n\r\n";
+    // if (!client.find(endOfHeaders))
+    // {
+    //   Serial.println(F("Invalid response"));
+    //   client.stop();
+    //   return;
+    // }
+    isStopped = true;
     client.stop();
     return;
   }
-
-  char status[32] = {0};
-  client.readBytesUntil('\r', status, sizeof(status));
-  if (strcmp(status, "HTTP/1.1 200 OK") != 0)
-  {
-    Serial.print(F("Unexpected response: "));
-    Serial.println(status);
-    client.stop();
-    return;
-  }
-
-  char endOfHeaders[] = "\r\n\r\n";
-  if (!client.find(endOfHeaders))
-  {
-    Serial.println(F("Invalid response"));
-    client.stop();
-    return;
-  }
-  isStopped = true;
-  client.stop();
 }
