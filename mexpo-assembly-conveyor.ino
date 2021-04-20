@@ -8,36 +8,32 @@
 #define CONVEYOR_PIN 7
 #define SENSOR_PIN 6
 #define EMERGENCY_PIN 3
-#define IDK_PIN 4
+#define MANUAL_PIN 2
 
 GButton emgBtn(EMERGENCY_PIN);
 GButton sensor(SENSOR_PIN);
+GButton manualBtn(MANUAL_PIN);
 
 // введите ниже MAC - адрес и IP - адрес вашего контроллера;
 // IP-адрес будет зависеть от вашей локальной сети:
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
-byte ip[] = {192, 168, 24, 186};
+byte ip[] = {192, 168, 24, 100};
 EthernetServer server(80);
 // задаем переменные для клиента:
 char linebuf[80];
 int charcount = 0;
-byte domain[] = {192, 168, 25, 111};
+byte domain[] = {192, 168, 25, 158};
 
 void setup()
 {
-  emgBtn.setDebounce(80);
-  sensor.setDebounce(80);
+  emgBtn.setDebounce(50);
+  sensor.setDebounce(50);
+  manualBtn.setDebounce(50);
 
-  Serial.begin(9600);
-  pinMode(7, OUTPUT);
-  pinMode(6, INPUT);
-  pinMode(5, INPUT);
-  pinMode(4, INPUT);
-  pinMode(3, INPUT);
-  pinMode(2, INPUT);
-  pinMode(1, INPUT);
-  pinMode(0, INPUT);
-
+  pinMode(CONVEYOR_PIN, OUTPUT);
+  pinMode(EMERGENCY_PIN, INPUT_PULLUP);
+  pinMode(SENSOR_PIN, INPUT_PULLUP);
+  pinMode(MANUAL_PIN, INPUT_PULLUP);
   Serial.begin(9600);
   while (!Serial)
     continue;
@@ -56,7 +52,14 @@ void loop()
   boolean isStopped = false;
   StaticJsonDocument<500> doc;
 
-  if (readPin(EMERGENCY_PIN) == HIGH && readPin(SENSOR_PIN) == HIGH)
+  Serial.print("EMERGENCY: ");
+  Serial.print(readPin(EMERGENCY_PIN));
+  Serial.print(" SENSOR: ");
+  Serial.print(readPin(SENSOR_PIN));
+  Serial.print(" MANUAL: ");
+  Serial.println(readPin(MANUAL_PIN));
+  delay(100);
+  if (readPin(EMERGENCY_PIN) != HIGH && readPin(SENSOR_PIN) != HIGH && readPin(MANUAL_PIN) != LOW)
   {
     isStopped = false;
     EthernetClient client = server.available();
@@ -151,7 +154,7 @@ void loop()
 
     if (isStopped == true)
     {
-      if (readPin(EMERGENCY_PIN) == HIGH && readPin(SENSOR_PIN) == HIGH)
+      if (readPin(EMERGENCY_PIN) != HIGH && readPin(SENSOR_PIN) != HIGH)
       {
         isStopped = false;
         return;
@@ -159,30 +162,32 @@ void loop()
       return;
     }
     Serial.println(F("Connecting..."));
-    delay(10);
     EthernetClient client;
-    // client.setTimeout(10000);
+    client.setTimeout(10000);
+    delay(10);
     if (!client.connect(domain, 80))
     {
       Serial.println(F("Connection failed"));
       client.stop();
       return;
     }
-    // Serial.println(F("Connected!"));
-    // Serial.print("Sensor Pin: ");
-    // Serial.println(readPin(SENSOR_PIN));
-    // Serial.print("Emegrency Pin: ");
-    // Serial.println(readPin(EMERGENCY_PIN));
-    if (readPin(SENSOR_PIN) == LOW)
+    Serial.println(F("Connected!"));
+    if (readPin(SENSOR_PIN) == HIGH)
     {
       client.println(F("GET /api/sensor HTTP/1.0"));
-      client.println(F("Host: 192.168.24.83"));
+      client.println(F("Host: 192.168.24.187"));
       client.println(F("Connection: close"));
     }
-    if (readPin(EMERGENCY_PIN) == LOW)
+    if (readPin(EMERGENCY_PIN) == HIGH)
     {
       client.println(F("GET /api/emergency HTTP/1.0"));
-      client.println(F("Host: 192.168.24.83"));
+      client.println(F("Host: 192.168.24.187"));
+      client.println(F("Connection: close"));
+    }
+    if (readPin(MANUAL_PIN) == LOW)
+    {
+      client.println(F("GET /api/manual HTTP/1.0"));
+      client.println(F("Host: 192.168.24.187"));
       client.println(F("Connection: close"));
     }
 
@@ -193,25 +198,25 @@ void loop()
       return;
     }
 
-    // char status[32] = {0};
-    // client.readBytesUntil('\r', status, sizeof(status));
-    // Serial.println(status);
-    // if (strcmp(status, "HTTP/1.1 200 OK") != 0)
-    // {
-    //   Serial.print(F("Unexpected response: "));
-    //   Serial.println(status);
-    //   client.stop();
-    //   delay(1000);
-    //   return;
-    // }
+    char status[32] = {0};
+    client.readBytesUntil('\r', status, sizeof(status));
+    Serial.println(status);
+    if (strcmp(status, "HTTP/1.1 200 OK") != 0)
+    {
+      Serial.print(F("Unexpected response: "));
+      Serial.println(status);
+      client.stop();
+      delay(1000);
+      return;
+    }
 
-    // char endOfHeaders[] = "\r\n\r\n";
-    // if (!client.find(endOfHeaders))
-    // {
-    //   Serial.println(F("Invalid response"));
-    //   client.stop();
-    //   return;
-    // }
+    char endOfHeaders[] = "\r\n\r\n";
+    if (!client.find(endOfHeaders))
+    {
+      Serial.println(F("Invalid response"));
+      client.stop();
+      return;
+    }
     isStopped = true;
     client.stop();
     return;

@@ -1,6 +1,6 @@
 {
     "board": "arduino:avr:uno",
-    "programmer": "AVRISP mkII",
+    "programmer": "arduino:avrisp",
     "sketch": "mexpo-assembly-conveyor.ino",
     "port": "/dev/ttyACM0"
 }
