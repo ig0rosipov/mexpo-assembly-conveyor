@@ -17,13 +17,14 @@ GButton manualBtn(MANUAL_PIN);
 // введите ниже MAC - адрес и IP - адрес вашего контроллера;
 // IP-адрес будет зависеть от вашей локальной сети:
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
-byte ip[] = {192, 168, 24, 100};
+byte ip[] = {192, 168, 64, 254};
+
 EthernetServer server(80);
 // задаем переменные для клиента:
 char linebuf[80];
 int charcount = 0;
-byte domain[] = {192, 168, 25, 158};
-
+byte domain[] = {192, 168, 64, 3};
+// byte domain[] = {127, 0, 0, 1};
 void setup()
 {
   emgBtn.setDebounce(50);
@@ -31,6 +32,7 @@ void setup()
   manualBtn.setDebounce(50);
 
   pinMode(CONVEYOR_PIN, OUTPUT);
+  setPin(CONVEYOR_PIN, HIGH);
   pinMode(EMERGENCY_PIN, INPUT_PULLUP);
   pinMode(SENSOR_PIN, INPUT_PULLUP);
   pinMode(MANUAL_PIN, INPUT_PULLUP);
@@ -100,19 +102,7 @@ void loop()
                 setPin(CONVEYOR_PIN, HIGH);
                 doc["status"] = "production";
               }
-              else if (strstr(linebuf, "GET /check") > 0)
-              {
-                if (readPin(CONVEYOR_PIN) == LOW)
-                {
-                  doc["status"] = "running";
-                }
-                else
-                {
-                  doc["status"] = "production";
-                }
-              }
             }
-
             // если получили символ новой строки...
             currentLineIsBlank = true;
             memset(linebuf, 0, sizeof(linebuf));
@@ -128,16 +118,16 @@ void loop()
       // даем веб-браузеру время на получение данных:
       delay(1);
       // закрываем соединение:
-      Serial.print(F("Sending: "));
+      Serial.print(("Sending: "));
       serializeJson(doc, Serial);
       Serial.println();
       // Write response headers
-      client.println(F("HTTP/1.0 200 OK"));
-      client.println(F("Content-Type: application/json"));
-      client.println(F("Access-Control-Allow-Origin: *"));
-      client.println(F("Access-Control-Allow-Headers: X-Requested-With, content-type, access-control-allow-origin, access-control-allow-methods, access-control-allow-headers"));
-      client.println(F("Connection: close"));
-      client.print(F("Content-Length: "));
+      client.println("HTTP/1.0 200 OK");
+      client.println("Content-Type: application/json");
+      client.println("Access-Control-Allow-Origin: *");
+      client.println("Access-Control-Allow-Headers: X-Requested-With, content-type, access-control-allow-origin, access-control-allow-methods, access-control-allow-headers");
+      client.println("Connection: close");
+      client.print("Content-Length: ");
       client.println(measureJsonPretty(doc));
       client.println();
       // Write JSON document
@@ -175,19 +165,19 @@ void loop()
     if (readPin(SENSOR_PIN) == HIGH)
     {
       client.println(F("GET /api/sensor HTTP/1.0"));
-      client.println(F("Host: 192.168.24.187"));
+      client.println(F("Host: 192.168.64.3"));
       client.println(F("Connection: close"));
     }
     if (readPin(EMERGENCY_PIN) == HIGH)
     {
       client.println(F("GET /api/emergency HTTP/1.0"));
-      client.println(F("Host: 192.168.24.187"));
+      client.println(F("Host: 192.168.64.3"));
       client.println(F("Connection: close"));
     }
     if (readPin(MANUAL_PIN) == LOW)
     {
       client.println(F("GET /api/manual HTTP/1.0"));
-      client.println(F("Host: 192.168.24.187"));
+      client.println(F("Host: 192.168.64.3"));
       client.println(F("Connection: close"));
     }
 
