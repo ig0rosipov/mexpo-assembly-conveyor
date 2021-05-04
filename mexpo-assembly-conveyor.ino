@@ -34,6 +34,7 @@ void setup()
 
   pinMode(CONVEYOR_PIN, OUTPUT);
   setPin(CONVEYOR_PIN, HIGH);
+  pinMode(BUZZER_PIN, OUTPUT);
   pinMode(EMERGENCY_PIN, INPUT_PULLUP);
   pinMode(SENSOR_PIN, INPUT_PULLUP);
   pinMode(MANUAL_PIN, INPUT_PULLUP);
@@ -50,14 +51,17 @@ void setup()
   Serial.println(Ethernet.localIP());
 }
 
+void beep() {
+  setPin(BUZZER_PIN, HIGH);
+  delay(500);
+  setPin(BUZZER_PIN, LOW);
+  delay(500);
+}
+
 void warning() {
-  setPin(BUZZER_PIN, HIGH);
-  delay(1000);
-  setPin(BUZZER_PIN, LOW);
-  delay(1000);
-  setPin(BUZZER_PIN, HIGH);
-  delay(1000);
-  setPin(BUZZER_PIN, LOW);
+  beep();
+  beep();
+  beep();
 }
 
 void loop()
