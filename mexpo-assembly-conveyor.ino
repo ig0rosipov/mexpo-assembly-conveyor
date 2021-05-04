@@ -7,6 +7,7 @@
 
 #define CONVEYOR_PIN 7
 #define SENSOR_PIN 6
+#define BUZZER_PIN 4
 #define EMERGENCY_PIN 3
 #define MANUAL_PIN 2
 
@@ -47,6 +48,16 @@ void setup()
   Serial.println(F("Server is ready."));
   Serial.print(F("Please connect to http://"));
   Serial.println(Ethernet.localIP());
+}
+
+void warning() {
+  setPin(BUZZER_PIN, HIGH);
+  delay(1000);
+  setPin(BUZZER_PIN, LOW);
+  delay(1000);
+  setPin(BUZZER_PIN, HIGH);
+  delay(1000);
+  setPin(BUZZER_PIN, LOW);
 }
 
 void loop()
@@ -94,6 +105,7 @@ void loop()
             {
               if (strstr(linebuf, "GET /run") > 0)
               {
+                warning();
                 setPin(CONVEYOR_PIN, LOW);
                 doc["status"] = "running";
               }
