@@ -5,11 +5,14 @@
 #include "GyverButton.h"
 #include "GyverHacks.h"
 
-#define CONVEYOR_PIN 7
-#define SENSOR_PIN 6
-#define BUZZER_PIN 4
-#define EMERGENCY_PIN 3
 #define MANUAL_PIN 2
+#define EMERGENCY_PIN 3
+#define BUZZER_PIN 4
+#define SENSOR_PIN 5
+#define CONVEYOR_PIN 6
+#define GREEN_LED 7
+#define YELLOW_LED 8
+#define RED_LED 9
 
 GButton emgBtn(EMERGENCY_PIN);
 GButton sensor(SENSOR_PIN);
@@ -38,6 +41,10 @@ void setup()
   pinMode(EMERGENCY_PIN, INPUT_PULLUP);
   pinMode(SENSOR_PIN, INPUT_PULLUP);
   pinMode(MANUAL_PIN, INPUT_PULLUP);
+  pinMode(GREEN_LED, OUTPUT);
+  pinMode(YELLOW_LED, OUTPUT);
+  pinMode(RED_LED, OUTPUT);
+
   Serial.begin(9600);
   while (!Serial)
     continue;
@@ -51,14 +58,18 @@ void setup()
   Serial.println(Ethernet.localIP());
 }
 
-void beep() {
+void beep()
+{
   setPin(BUZZER_PIN, HIGH);
+  setPin(YELLOW_LED, HIGH);
   delay(500);
   setPin(BUZZER_PIN, LOW);
+  setPin(YELLOW_LED, LOW);
   delay(500);
 }
 
-void warning() {
+void warning()
+{
   beep();
   beep();
   beep();
@@ -110,13 +121,28 @@ void loop()
               if (strstr(linebuf, "GET /run") > 0)
               {
                 warning();
-                setPin(CONVEYOR_PIN, LOW);
                 doc["status"] = "running";
+                setPin(CONVEYOR_PIN, LOW);
+                setPin(GREEN_LED, LOW);
+                setPin(YELLOW_LED, LOW);
+                setPin(RED_LED, HIGH);
               }
               else if (strstr(linebuf, "GET /stop") > 0)
               {
-                setPin(CONVEYOR_PIN, HIGH);
+                warning();
                 doc["status"] = "production";
+                setPin(CONVEYOR_PIN, HIGH);
+                setPin(YELLOW_LED, LOW);
+                setPin(RED_LED, LOW);
+                setPin(GREEN_LED, HIGH);
+              }
+              else if (strstr(linebuf, "GET /pause") > 0)
+              {
+                doc["status"] = "pause";
+                setPin(CONVEYOR_PIN, HIGH);
+                setPin(GREEN_LED, LOW);
+                setPin(RED_LED, LOW);
+                setPin(YELLOW_LED, HIGH);
               }
             }
             // если получили символ новой строки...
